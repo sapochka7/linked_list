@@ -13,6 +13,10 @@ A template class representing a node in the list holds a data item of type T and
 
 ### dList<T>: 
 A template class for the doubly linked list with methods to 
+- move_forward
+- move_backward
+- get_current_data
+
 add and remove elements from both ends 
 
 - add_front
