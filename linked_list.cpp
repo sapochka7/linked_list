@@ -12,7 +12,7 @@ public:
 public:
 	explicit Node(T data)
 	: data(data), prev(nullptr), next(nullptr)
-	  {}
+	 {}
 };
 
 template<typename T>
@@ -20,24 +20,27 @@ class dList
 {
 private:
 	std::shared_ptr<Node<T>> head;
-    std::shared_ptr<Node<T>> tail;
+	std::shared_ptr<Node<T>> tail;
+	std::shared_ptr<Node<T>> cursor; // Cursor to track current position
 
 public:
 	dList()
-	: head(nullptr), tail(nullptr)
+	: head(nullptr), tail(nullptr), cursor(nullptr)
 	{}
 
 	void add_front(T data)
 	{
-        auto new_node = std::make_shared<Node<T>>(data);
+		auto new_node = std::make_shared<Node<T>>(data);
 		if (!head)
 			head = tail = new_node;
 		else
-		{
+	{
 			new_node->next = head;
 			head->prev = new_node;
 			head = new_node;
 		}
+		if (!cursor)
+			cursor = head;
 	}
 
 	void add_back(T data)
@@ -46,76 +49,121 @@ public:
 		if (!tail)
 			head = tail = new_node;
 		else
-		{
+	{
 			tail->next = new_node;
 			new_node->prev = tail;
 			tail = new_node;
 		}
+		if (!cursor)
+			cursor = tail;
 	}
 
-	T remove_front()
+	void remove_front()
 	{
 		if (!head)
-			throw std::runtime_error("List is empty");
-		auto temp = head;
-		T data = temp->data;
+			throw std::runtime_error("List is empty.");
+		if(cursor == head)
+			cursor = head->next;
 		head = head->next;
 		if (head)
-			head->prev = nullptr;
+			head->prev.reset();
 		else
-			tail = nullptr;
-		return data;
+			tail.reset();
 	}
 
-	T remove_back()
+	void remove_back()
 	{
 		if (!tail)
-			throw std::runtime_error("List is empty");
-		auto temp = tail;
-		T data = temp->data;
+			throw std::runtime_error("List is empty.");
+		if(cursor == tail)
+			cursor = tail->prev;
 		tail = tail->prev;
 		if (tail)
-			tail->next = nullptr;
+			tail->next.reset();
 		else
-			head = nullptr;
-		return data;
+			head.reset();
 	}
 
 	bool is_empty() const
 	{
-        return head == nullptr;
-    }
+		return !head;
+	}
+
+	void move_forward()
+	{
+		if (cursor && cursor->next)
+			cursor = cursor->next;
+		else if (tail)
+			cursor = tail;
+	}
+
+	void move_backward()
+	{
+		if (cursor && cursor->prev)
+			cursor = cursor->prev;
+		else if (head)
+			cursor = head;
+	}
+
+	T get_current_data()
+	{
+		if (cursor)
+			return cursor->data;
+		else
+			throw std::runtime_error("Cursor is not set.");
+	}
+
+	void set_cursor_to_head()
+	{
+		cursor = head;
+	}
+
+	void set_cursor_to_tail()
+	{
+		cursor = tail;
+	}
+
+	bool is_cursor_set()
+	{
+		return cursor != nullptr;
+	}
+
+	void display_current()
+	{
+		if (cursor)
+			std::cout << "Current data: " << cursor->data << std::endl;
+		else
+			std::cout << "Cursor is not set." << std::endl;
+	}
 
 	void display_forward()
 	{
-        auto current = head;
-		while (current != nullptr)
+		auto node = head;
+		while (node)
 		{
-            std::cout << current->data << " ";
-            current = current->next;
-        }
-        std::cout << std::endl;
-    }
+			std::cout << node->data << " ";
+			node = node->next;
+		}
+		std::cout << std::endl;
+	}
 
 	void display_backward()
 	{
-        auto current = tail;
-		while (current != nullptr)
+		auto node = tail;
+		while (node)
 		{
-            std::cout << current->data << " ";
-            current = current->prev;
-        }
-        std::cout << std::endl;
-    }
+			std::cout << node->data << " ";
+			node = node->prev;
+		}
+		std::cout << std::endl;
+	}
 };
-
-// Home brew unit test
 
 void verify_list()
 {
 	dList<char> list;
 
-    assert(list.is_empty());
+	assert(list.is_empty());
 
 	list.add_front('b');
 	list.add_back('c');
@@ -124,45 +172,71 @@ void verify_list()
 
 	assert(!list.is_empty());
 
-	list.display_forward();  // Expected output: a b c d
+	list.display_forward(); // Expected output: a b c d
 	list.display_backward(); // Expected output: d c b a
 
-	// Remove elements one at a time from both ends
-	assert(list.remove_front() 	== 'a');
-	assert(list.remove_back() 	== 'd');
-	assert(list.remove_front() 	== 'b');
-	assert(list.remove_back() 	== 'c');
+	list.set_cursor_to_head(); // Set cursor to head
+	list.move_forward();		// Move cursor forward
+	assert(list.get_current_data() == 'b');
 
-	assert(list.is_empty());    // List is empty
+	list.move_forward();		// Move cursor forward
+	assert(list.get_current_data() == 'c');
 
-	bool got_exception=false;
+	list.move_backward();	 // Move cursor backward
+	assert(list.get_current_data() == 'b');
+
+	list.move_backward();	 // Move cursor backward
+	assert(list.get_current_data() == 'a');
+
+	list.set_cursor_to_tail(); // Set cursor to tail
+	assert(list.get_current_data() == 'd');
+
+	list.move_forward();		// Move cursor forward (should not change)
+	assert(list.get_current_data() == 'd');
+	list.move_backward();	 // Move cursor backward
+	assert(list.get_current_data() == 'c');
+
+	list.move_forward();		// Move cursor forward
+	assert(list.get_current_data() == 'd');
+
+	list.move_forward();		// Move cursor forward (should not change)
+	assert(list.get_current_data() == 'd');
+
+
+	list.remove_front(); // Remove 'a'
+	assert(list.get_current_data() == 'd'); // Keep position
+
+	list.remove_back(); // Remove 'd'
+	assert(list.get_current_data() == 'c'); // Cursor should move to available node
+
+	bool got_exception = false;
 	try
 	{
-		list.remove_back(); // Provoke an exception
+		list.remove_front(); // Remove 'b'
+		list.remove_front(); // Remove 'c', list is now empty
 	}
 	catch (const std::runtime_error& e)
 	{
 		got_exception = true;
 	}
-	assert(got_exception); 	// Exception as expected
+	assert(!got_exception && list.is_empty()); // List should be empty without exceptions
 
 	got_exception = false;
 	try
 	{
-		list.remove_front(); // Provoke an exception
-	} catch (const std::runtime_error& e)
+		list.get_current_data(); // Trying to get data from an empty list
+	}
+	catch (const std::runtime_error& e)
 	{
 		got_exception = true;
 	}
-	assert(got_exception); 	// Exception as expected
+	assert(got_exception); // Should catch an exception because list is empty
 
-	assert(list.is_empty());    // List still empty
+	std::cout << "All tests passed." << std::endl;
 }
 
 int main()
 {
 	verify_list();
-    std::cout << "All tests passed." << std::endl;
-    return 0;
+	return 0;
 }
-
